@@ -7,6 +7,7 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,7 +22,9 @@ import java.util.Optional;
 public class JwtProvider {
     private final AuthAccount authAccount;
     private final long exp = 1000L * 60 * 60 * 8;
-    private final String issuer = "aws-manager";
+    @Value("${env.jsonwebtoken.issuer}")
+    private String issuer;
+
     private final SecretKey key = Jwts.SIG.HS512.key().build();
 
     private final CustomUserDetailsService userDetailsService;
