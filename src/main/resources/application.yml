@@ -22,7 +22,8 @@ server:
 env:
   id: admin
   password: xogur38997
-  secret: 1cdc4f18eacd70e24d2d767d53662bff074fe56d
+  jsonwebtoken:
+    issuer: aws-manager
   aws:
     subnet:
       tag: "awsmgr-managed"
