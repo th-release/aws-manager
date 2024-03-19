@@ -10,7 +10,4 @@ public class AuthAccount {
 
     @Value("${env.password}")
     public String password;
-
-    @Value("${env.secret}")
-    public String secret;
 }
