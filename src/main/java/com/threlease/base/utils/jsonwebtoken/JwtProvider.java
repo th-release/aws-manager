@@ -48,6 +48,10 @@ public class JwtProvider {
                     .build()
                     .parseSignedClaims(token);
 
+            if (jws.getPayload().getExpiration().before(new Date())){
+                return Optional.empty();
+            }
+
             return Optional.of(jws);
         } catch (JwtException e) {
             return Optional.empty();
@@ -66,7 +70,7 @@ public class JwtProvider {
                     .build()
                     .parseSignedClaims(token);
 
-            return true;
+            return !jws.getPayload().getExpiration().before(new Date());
         } catch (JwtException e) {
             return false;
         }
@@ -75,7 +79,9 @@ public class JwtProvider {
     public Authentication getAuthentication(String token) {
         UserDetails userDetails = userDetailsService.loadUserByUsername(
                 this.verify(token).isPresent() ?
-                this.verify(token).get().getPayload().getSubject() : "_:_:_"
+                new Hash().base64_decode(
+                        this.verify(token).get().getPayload().getSubject()
+                ) : ""
         );
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
     }

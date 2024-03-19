@@ -1,5 +1,6 @@
 package com.threlease.base.utils.jsonwebtoken;
 
+import com.threlease.base.entites.AuthEntity;
 import com.threlease.base.functions.auth.Roles;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,21 +15,21 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 public class CustomUserDetails implements UserDetails {
-    private String auth;
+    private AuthEntity auth;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(auth.split(":")[2]));
+        return List.of(new SimpleGrantedAuthority(""));
     }
 
     @Override
     public String getPassword() {
-        return auth.split(":")[1];
+        return auth.getPassword();
     }
 
     @Override
     public String getUsername() {
-        return auth.split(":")[0];
+        return auth.getUsername();
     }
 
     @Override
