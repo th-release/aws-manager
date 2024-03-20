@@ -1,6 +1,8 @@
 package com.threlease.base.utils.jsonwebtoken;
 
+import com.threlease.base.entites.AuthEntity;
 import com.threlease.base.functions.auth.AuthAccount;
+import com.threlease.base.repositories.AuthRepository;
 import com.threlease.base.utils.Hash;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
@@ -21,6 +23,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class JwtProvider {
     private final AuthAccount authAccount;
+    private final AuthRepository authRepository;
     private final long exp = 1000L * 60 * 60 * 8;
     @Value("${env.jsonwebtoken.issuer}")
     private String issuer;
@@ -57,6 +60,16 @@ public class JwtProvider {
 
             return Optional.of(jws);
         } catch (JwtException e) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<AuthEntity> findOneByToken(String token) {
+        Optional<Jws<Claims>> verify = this.verify(token);
+
+        if (verify.isPresent()) {
+            return authRepository.findOneByUUID(verify.get().getPayload().getSubject());
+        } else {
             return Optional.empty();
         }
     }

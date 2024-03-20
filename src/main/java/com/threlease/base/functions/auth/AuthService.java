@@ -30,6 +30,8 @@ public class AuthService {
         return authRepository.findOneByUUID(uuid);
     }
 
+    public Optional<AuthEntity> findOneByToken(String token) { return jwtProvider.findOneByToken(token); }
+
     public Optional<AuthEntity> findOneByUsername(String username) {
         return authRepository.findOneByUsername(username);
     }
@@ -37,7 +39,6 @@ public class AuthService {
     public String sign(String input) {
         return jwtProvider.sign(input);
     }
-
     public Optional<Jws<Claims>> verify(String token) {
         return jwtProvider.verify(token);
     }
