@@ -134,7 +134,7 @@ public class AwsController {
             @RequestParam @Valid SearchInstance dto
     ) {
         Page<InstanceEntity> instances = manageInstanceService.searchInstances(PageRequest.of(dto.getTake(), dto.getSkip()), dto.getQuery());
-        long pageCount = manageInstanceService.countInstancePages(dto.getTake());
+        long pageCount = manageInstanceService.countSearchInstancePages(dto.getTake(), dto.getQuery());
         ListInstanceResponse data_response = ListInstanceResponse.builder()
                 .instances(instances)
                 .pageCount(pageCount)
