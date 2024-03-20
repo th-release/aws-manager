@@ -114,10 +114,19 @@ public class Ec2InstanceService {
     public Failable<Boolean, String> updateEC2InstanceType(
             Ec2Client ec2Client,
             String id,
-            InstanceType type
+            String type
     ) {
+        if (!EnumStringComparison.compareEnumString(type, InstanceType.class) ||
+                (!type.equals("t3a.nano")
+                        && !type.equals("t3a.small")
+                        && !type.equals("t3a.micro")
+                        && !type.equals("t2.nano"))
+        ) {
+            return Failable.error("Invalid instance type");
+        }
+
         AttributeValue instanceType = AttributeValue.builder()
-                .value(type.name())
+                .value(type)
                 .build();
 
         ModifyInstanceAttributeRequest request = ModifyInstanceAttributeRequest.builder()
