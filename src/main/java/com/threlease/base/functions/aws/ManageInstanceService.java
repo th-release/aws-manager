@@ -16,16 +16,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
-import software.amazon.awssdk.services.ec2.model.Address;
-import software.amazon.awssdk.services.ec2.model.Instance;
-import software.amazon.awssdk.services.ec2.model.InstanceStatus;
-import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.*;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class ManageInstanceService {
@@ -189,7 +185,7 @@ public class ManageInstanceService {
             return Failable.error(ec2Instance.getError());
         }
 
-        utilsService.waitForState(ec2Client, !instance.getUuid().isEmpty() ? instance.getUuid() : "", "running");
+        utilsService.waitForState(ec2Client, !instance.getUuid().isEmpty() ? instance.getUuid() : "", InstanceStateName.RUNNING);
 
         Failable<Address, String> address = networkService.attachEIP(ec2Client,
                 !instance.getUuid().isEmpty() ?
@@ -226,7 +222,7 @@ public class ManageInstanceService {
             return Failable.error(deleteInstance.getError());
         }
 
-        utilsService.waitForState(ec2Client, instance.getUuid(), "terminated");
+        utilsService.waitForState(ec2Client, instance.getUuid(), InstanceStateName.TERMINATED);
 
         Failable<Boolean, String> deleteSecurityGroup = securityGroupService.deleteSecurityGroup(ec2Client, instance.getName());
         if (deleteSecurityGroup.isError()) {
@@ -234,6 +230,29 @@ public class ManageInstanceService {
         }
 
         instanceRemove(instance);
+        return Failable.success(true);
+    }
+
+    public Failable<Boolean, String> restartInstance(
+            Ec2Client ec2Client,
+            InstanceEntity instance
+    ) {
+        List<InstanceStatus> status = ec2InstanceService.getEC2InstanceStatus(ec2Client, List.of(instance.getUuid()));
+
+        if (status.isEmpty()) {
+            return Failable.error("NOT FOUND INSTANCE STATUS");
+        }
+
+        if (status.get(0).instanceState().name() == InstanceStateName.STOPPED) {
+            ec2InstanceService.startEC2Instance(ec2Client, instance.getUuid());
+
+            return Failable.success(true);
+        }
+
+        ec2InstanceService.forceStopEC2Instance(ec2Client, instance.getUuid());
+        utilsService.waitForState(ec2Client, instance.getUuid(), InstanceStateName.STOPPED);
+        ec2InstanceService.startEC2Instance(ec2Client, instance.getUuid());
+
         return Failable.success(true);
     }
 

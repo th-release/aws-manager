@@ -2,6 +2,7 @@ package com.threlease.base.functions.aws;
 
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.InstanceStateName;
 import software.amazon.awssdk.services.ec2.model.InstanceStatus;
 
 import java.util.List;
@@ -17,14 +18,14 @@ public class UtilsService {
     public void waitForState(
             Ec2Client ec2Client,
             String id,
-            String state
+            InstanceStateName state
     ) {
         for (;;) {
             delayInSeconds(500);
 
             List<InstanceStatus> status = ec2InstanceService.getEC2InstanceStatus(ec2Client, List.of(id));
 
-            if (status.get(0).instanceState().name().equals(state)) {
+            if (status.get(0).instanceState().name() == state) {
                 break;
             }
 

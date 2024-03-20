@@ -303,7 +303,69 @@ public class AwsController {
 
             new WebSocketHandler().send(gateway);
             ec2Client.close();
-            deleteInstanceFuture.completeExceptionally(new ResponseStatusException(500, "인스턴스 생성 중 문제가 발생하였습니다.", ex));
+            deleteInstanceFuture.completeExceptionally(new ResponseStatusException(500, "인스턴스 삭제 중 문제가 발생하였습니다.", ex));
+            return null;
+        });
+
+        return ResponseEntity.status(200).body(response);
+    }
+
+    @PostMapping("/instance/{id}/restart")
+    private ResponseEntity<?> restartInstance(
+            @PathVariable("id") String id
+    ) {
+        Ec2Client ec2Client = manageInstanceService.getEc2Client();
+
+        Optional<InstanceEntity> instance = manageInstanceService.findOneByUuid(id);
+        if (instance.isEmpty()) {
+            BasicResponse response = BasicResponse.builder()
+                    .success(false)
+                    .message(Optional.of("NOT FOUND INSTANCE"))
+                    .data(Optional.empty())
+                    .build();
+
+            return ResponseEntity.status(404).body(response);
+        }
+
+        BasicResponse response = BasicResponse.builder()
+                .success(true)
+                .message(Optional.empty())
+                .data(Optional.empty())
+                .build();
+
+        CompletableFuture<Failable<Boolean, String>> restartInstanceFuture = CompletableFuture.supplyAsync(() ->
+                manageInstanceService.restartInstance(ec2Client, instance.get())
+        );
+
+        restartInstanceFuture.thenAccept(result -> {
+            ec2Client.close();
+            if (result.isError()) {
+                NoticeResponse gateway = NoticeResponse.builder()
+                        .type("ERROR")
+                        .message(Optional.of("인스턴스 재시작 중 문제가 발생하였습니다.\n"+result.getError()))
+                        .build();
+
+                new WebSocketHandler().send(gateway);
+            } else {
+                NoticeResponse gateway = NoticeResponse.builder()
+                        .type("SUCCESS")
+                        .message(Optional.of("인스턴스를 성공적으로 재시작 하였습니다."))
+                        .build();
+
+                new WebSocketHandler().send(gateway);
+            }
+            restartInstanceFuture.complete(null);
+        });
+
+        restartInstanceFuture.exceptionally(ex -> {
+            NoticeResponse gateway = NoticeResponse.builder()
+                    .type("ERROR")
+                    .message(Optional.of("인스턴스 재시작 중 문제가 발생하였습니다."))
+                    .build();
+
+            new WebSocketHandler().send(gateway);
+            ec2Client.close();
+            restartInstanceFuture.completeExceptionally(new ResponseStatusException(500, "인스턴스 재시작 중 문제가 발생하였습니다.", ex));
             return null;
         });
 
