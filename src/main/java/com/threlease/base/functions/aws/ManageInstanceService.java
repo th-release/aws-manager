@@ -141,7 +141,7 @@ public class ManageInstanceService {
                     "Internal error has been occurred during create keypair."
             );
         }
-        instance.setKeypairId(keypair.getValue());
+        instance.setKeypair(keypair.getValue());
 
         List<Integer> ports = Arrays.stream(instance.getPorts().split(","))
                 .map(v -> {

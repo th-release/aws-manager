@@ -4,6 +4,7 @@ import com.amazonaws.services.pricing.AWSPricing;
 import com.amazonaws.services.pricing.AWSPricingClient;
 import com.amazonaws.services.pricing.AWSPricingClientBuilder;
 import com.threlease.base.entites.InstanceEntity;
+import com.threlease.base.entites.KeypairEntity;
 import com.threlease.base.functions.aws.dto.request.CreateInstance;
 import com.threlease.base.functions.aws.dto.request.ListInstance;
 import com.threlease.base.functions.aws.dto.request.SearchInstance;
@@ -497,6 +498,30 @@ public class AwsController {
             resetInstanceFuture.completeExceptionally(new ResponseStatusException(500, "인스턴스 초기화 중 문제가 발생하였습니다.", ex));
             return null;
         });
+
+        return ResponseEntity.status(200).body(response);
+    }
+
+    @GetMapping("/instance/{id}/keypair")
+    private ResponseEntity<?> getInstanceKeypair(
+            @PathVariable("id") String id
+    ) {
+        Optional<InstanceEntity> instance = manageInstanceService.findOneByUuid(id);
+        if (instance.isEmpty()) {
+            BasicResponse response = BasicResponse.builder()
+                    .success(false)
+                    .message(Optional.of("NOT FOUND INSTANCE"))
+                    .data(Optional.empty())
+                    .build();
+
+            return ResponseEntity.status(404).body(response);
+        }
+
+        BasicResponse response = BasicResponse.builder()
+                .success(true)
+                .message(Optional.empty())
+                .data(Optional.of(instance.get().getKeypair()))
+                .build();
 
         return ResponseEntity.status(200).body(response);
     }
