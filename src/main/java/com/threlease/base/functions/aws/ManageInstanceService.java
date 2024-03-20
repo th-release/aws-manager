@@ -5,6 +5,7 @@ import com.amazonaws.services.pricing.AWSPricingClient;
 import com.amazonaws.services.pricing.AWSPricingClientBuilder;
 import com.threlease.base.entites.InstanceEntity;
 import com.threlease.base.entites.KeypairEntity;
+import com.threlease.base.functions.aws.dto.request.UpdateInstance;
 import com.threlease.base.functions.aws.dto.returns.GetInstanceReturn;
 import com.threlease.base.repositories.InstanceRepository;
 import com.threlease.base.utils.EnumStringComparison;
@@ -12,7 +13,6 @@ import com.threlease.base.utils.Failable;
 import com.threlease.base.utils.responses.BasicResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -27,6 +27,7 @@ import java.util.Optional;
 public class ManageInstanceService {
     private final Ec2InstanceService ec2InstanceService;
     private final InstanceRepository instanceRepository;
+    private final StorageService storageService;
     private final PriceService priceService;
     private final NetworkService networkService;
     private final KeypairService keypairService;
@@ -35,12 +36,13 @@ public class ManageInstanceService {
 
     public ManageInstanceService(
             Ec2InstanceService ec2InstanceService, InstanceRepository instanceRepository,
-            PriceService priceService,
+            StorageService storageService, PriceService priceService,
             NetworkService subnetService,
             KeypairService keypairService,
             SecurityGroupService securityGroupService, UtilsService utilsService) {
         this.ec2InstanceService = ec2InstanceService;
         this.instanceRepository = instanceRepository;
+        this.storageService = storageService;
         this.priceService = priceService;
         this.networkService = subnetService;
         this.keypairService = keypairService;
@@ -230,6 +232,133 @@ public class ManageInstanceService {
         }
 
         instanceRemove(instance);
+        return Failable.success(true);
+    }
+
+    public Failable<Boolean, String> updateInstance(
+            Ec2Client ec2Client,
+            InstanceEntity instance,
+            UpdateInstance update
+    ) {
+        if (!Objects.equals(instance.getPorts(), update.getPorts())) {
+            List<Integer> ports = Arrays.stream(instance.getPorts().split(","))
+                    .map(v -> {
+                        try {
+                            return Math.abs(Integer.parseInt(v.trim()));
+                        } catch (NumberFormatException e) {
+                            return null; // 유효하지 않은 숫자는 null로 처리
+                        }
+                    })
+                    .filter(Objects::nonNull) // null이 아닌 값만 필터링
+                    .toList();
+
+            Failable<Boolean, String> updateSecurityGroup = securityGroupService.updateSecurityGroup(
+                    ec2Client,
+                    instance.getName(),
+                    ports
+            );
+
+            instance.setPorts(update.getPorts());
+        }
+        double pricePerHour = 0.0;
+        if (instance.getStorageSize() != update.getStorageSize() || !Objects.equals(instance.getType(), update.getInstanceType())) {
+            Failable<Boolean, String> stopEc2 = ec2InstanceService.stopEC2Instance(
+                    ec2Client,
+                    instance.getUuid()
+            );
+            if (stopEc2.isError()) {
+                return Failable.error(stopEc2.getError());
+            }
+
+            utilsService.waitForState(
+                    ec2Client,
+                    instance.getUuid(),
+                    InstanceStateName.STOPPED
+            );
+
+            if (instance.getStorageSize() != update.getStorageSize()) {
+                Failable<Instance, String> ec2 = ec2InstanceService.getEc2Instance(
+                        ec2Client,
+                        instance.getUuid()
+                );
+
+                if (ec2.isError()) {
+                    return Failable.error(ec2.getError());
+                }
+
+                Instance ec2Instance = ec2.getValue();
+                if (ec2Instance.blockDeviceMappings().isEmpty()) {
+                    return Failable.error("NOT FOUND BLOCK_DEVIDE_MAPPINGS");
+                }
+
+                String volumeId = ec2Instance.blockDeviceMappings().get(0).ebs().volumeId();
+                Failable<Boolean, String> updateRootStorage = storageService.updateRootStorage(
+                        ec2Client,
+                        volumeId,
+                        update.getStorageSize()
+                );
+
+                if (updateRootStorage.isError()) {
+                    return Failable.error(updateRootStorage.getError());
+                }
+
+                instance.setStorageSize(update.getStorageSize());
+            }
+
+            if (!Objects.equals(update.getInstanceType(), instance.getType())) {
+                if (!EnumStringComparison.compareEnumString(instance.getType(), InstanceType.class) ||
+                        (!instance.getType().equals("t3a.nano")
+                                && !instance.getType().equals("t3a.small")
+                                && !instance.getType().equals("t3a.micro")
+                                && !instance.getType().equals("t2.nano"))
+                ) {
+                    return Failable.error("Invalid instance type");
+                }
+
+                AWSPricingClientBuilder pricingClientBuilder = AWSPricingClient.builder();
+
+                pricingClientBuilder.setRegion("ap-south-1");
+                AWSPricing pricingClient = pricingClientBuilder.build();
+
+                Failable<Double, String> price_request = priceService.getTypePricePerHour(
+                        pricingClient,
+                        update.getInstanceType()
+                );
+                if (price_request.isError()){
+                    return Failable.error(price_request.getError());
+                }
+
+                pricePerHour = price_request.getValue();
+
+                Failable<Boolean, String> updateType = ec2InstanceService.updateEC2InstanceType(
+                        ec2Client,
+                        instance.getUuid(),
+                        update.getInstanceType()
+                );
+                if (updateType.isError()) {
+                    return Failable.error(updateType.getError());
+                }
+
+                instance.setType(update.getInstanceType());
+            }
+
+            Failable<Boolean, String> startRequest= ec2InstanceService.startEC2Instance(ec2Client, instance.getUuid());
+            if (startRequest.isError()) {
+                return Failable.error(startRequest.getError());
+            }
+            utilsService.waitForState(
+                    ec2Client,
+                    instance.getUuid(),
+                    InstanceStateName.RUNNING
+            );
+        }
+
+        instance.setMemo(update.getMemo());
+        instance.setOwner(update.getOwner());
+        instance.setDescription(update.getDescription());
+        instance.setPricePerHour(pricePerHour);
+
+        instanceSave(instance);
         return Failable.success(true);
     }
 

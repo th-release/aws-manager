@@ -7,6 +7,7 @@ import com.threlease.base.entites.InstanceEntity;
 import com.threlease.base.functions.aws.dto.request.CreateInstance;
 import com.threlease.base.functions.aws.dto.request.ListInstance;
 import com.threlease.base.functions.aws.dto.request.SearchInstance;
+import com.threlease.base.functions.aws.dto.request.UpdateInstance;
 import com.threlease.base.functions.aws.dto.response.ListInstanceResponse;
 import com.threlease.base.functions.aws.dto.response.PriceAllResponse;
 import com.threlease.base.functions.aws.dto.returns.GetInstanceReturn;
@@ -167,7 +168,7 @@ public class AwsController {
         return ResponseEntity.status(200).body(response);
     }
 
-    @PostMapping("/instance/create")
+    @PostMapping("/instance")
     private ResponseEntity<?> createInstance(
             @ModelAttribute @Valid CreateInstance dto,
             HttpServletResponse res
@@ -243,6 +244,73 @@ public class AwsController {
                 ec2Client.close();
                 createInstanceFuture.completeExceptionally(new ResponseStatusException(500, "인스턴스 생성 중 문제가 발생하였습니다.", ex));
                 return null;
+        });
+
+        return ResponseEntity.status(200).body(response);
+    }
+
+    @PutMapping("/instance/{id}")
+    private ResponseEntity<?> updateInstance(
+            @PathVariable("id") String id,
+            @ModelAttribute @Valid  UpdateInstance dto
+    ) {
+        Ec2Client ec2Client = manageInstanceService.getEc2Client();
+
+        Optional<InstanceEntity> instance = manageInstanceService.findOneByUuid(id);
+        if (instance.isEmpty()) {
+            BasicResponse response = BasicResponse.builder()
+                    .success(false)
+                    .message(Optional.of("NOT FOUND INSTANCE"))
+                    .data(Optional.empty())
+                    .build();
+
+            return ResponseEntity.status(404).body(response);
+        }
+
+        BasicResponse response = BasicResponse.builder()
+                .success(true)
+                .message(Optional.empty())
+                .data(Optional.empty())
+                .build();
+
+        CompletableFuture<Failable<Boolean, String>> updateInstanceFuture = CompletableFuture.supplyAsync(() ->
+                manageInstanceService.updateInstance(
+                        ec2Client,
+                        instance.get(),
+                        dto
+                )
+        );
+
+        updateInstanceFuture.thenAccept(result -> {
+            ec2Client.close();
+            if (result.isError()) {
+                NoticeResponse gateway = NoticeResponse.builder()
+                        .type("ERROR")
+                        .message(Optional.of("인스턴스 수정 중 문제가 발생하였습니다.\n"+result.getError()))
+                        .build();
+
+                new WebSocketHandler().send(gateway);
+            } else {
+                NoticeResponse gateway = NoticeResponse.builder()
+                        .type("SUCCESS")
+                        .message(Optional.of("인스턴스를 성공적으로 수정 하였습니다."))
+                        .build();
+
+                new WebSocketHandler().send(gateway);
+            }
+            updateInstanceFuture.complete(null);
+        });
+
+        updateInstanceFuture.exceptionally(ex -> {
+            NoticeResponse gateway = NoticeResponse.builder()
+                    .type("ERROR")
+                    .message(Optional.of("인스턴스 수정 중 문제가 발생하였습니다."))
+                    .build();
+
+            new WebSocketHandler().send(gateway);
+            ec2Client.close();
+            updateInstanceFuture.completeExceptionally(new ResponseStatusException(500, "인스턴스 수정 중 문제가 발생하였습니다.", ex));
+            return null;
         });
 
         return ResponseEntity.status(200).body(response);
