@@ -58,11 +58,11 @@ public class ManageInstanceService {
                 .build();
     }
 
-    public void InstanceSave(InstanceEntity instance) {
+    public void instanceSave(InstanceEntity instance) {
         instanceRepository.save(instance);
     }
 
-    public void InstanceRemove(InstanceEntity instance) {
+    public void instanceRemove(InstanceEntity instance) {
         instanceRepository.delete(instance);
     }
     public List<InstanceEntity> findAll() { return instanceRepository.findAll(); }
@@ -204,6 +204,36 @@ public class ManageInstanceService {
 
         instanceRepository.save(instance);
 
+        return Failable.success(true);
+    }
+
+    public Failable<Boolean, String> deleteInstsance(
+            Ec2Client ec2Client,
+            InstanceEntity instance
+    ) {
+        Failable<Boolean, String> detachEIP = networkService.detachEIP(ec2Client, instance.getUuid());
+        if (detachEIP.isError()) {
+            return Failable.error(detachEIP.getError());
+        }
+
+        Failable<Boolean, String> deleteKeypair = keypairService.deleteKeypair(ec2Client, instance.getName(), "name");
+        if (deleteKeypair.isError()) {
+            return Failable.error(deleteKeypair.getError());
+        }
+
+        Failable<Boolean, String> deleteInstance = ec2InstanceService.deleteEC2Instance(ec2Client, instance.getUuid());
+        if (deleteInstance.isError()) {
+            return Failable.error(deleteInstance.getError());
+        }
+
+        utilsService.waitForState(ec2Client, instance.getUuid(), "terminated");
+
+        Failable<Boolean, String> deleteSecurityGroup = securityGroupService.deleteSecurityGroup(ec2Client, instance.getName());
+        if (deleteSecurityGroup.isError()) {
+            return Failable.error(deleteSecurityGroup.getError());
+        }
+
+        instanceRemove(instance);
         return Failable.success(true);
     }
 
