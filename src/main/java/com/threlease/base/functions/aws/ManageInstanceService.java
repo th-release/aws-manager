@@ -190,7 +190,15 @@ public class ManageInstanceService {
         return instanceRepository.findByPagination(pageable);
     }
 
+    public Page<InstanceEntity> searchInstances(Pageable pageable, String query) {
+        return instanceRepository.findBySearchPagination(pageable, query);
+    }
+
     public long countInstancePages(long take) {
         return (long) Math.floor((double) instanceRepository.count() / take);
+    }
+
+    public long countSearchInstancePages(long take, String query) {
+        return (long) Math.floor((double) instanceRepository.countBySearch(query) / take);
     }
 }

@@ -7,6 +7,7 @@ import com.threlease.base.entites.InstanceEntity;
 import com.threlease.base.functions.aws.dto.request.CreateInstance;
 import com.threlease.base.functions.aws.dto.request.GetInstances;
 import com.threlease.base.functions.aws.dto.request.ListInstance;
+import com.threlease.base.functions.aws.dto.request.SearchInstance;
 import com.threlease.base.functions.aws.dto.response.ListInstanceResponse;
 import com.threlease.base.functions.aws.dto.response.PriceAllResponse;
 import com.threlease.base.functions.notice.NoticeResponse;
@@ -113,6 +114,26 @@ public class AwsController {
             @RequestParam @Valid ListInstance dto
     ) {
         Page<InstanceEntity> instances = manageInstanceService.listInstances(PageRequest.of(dto.getTake(), dto.getSkip()));
+        long pageCount = manageInstanceService.countInstancePages(dto.getTake());
+        ListInstanceResponse data_response = ListInstanceResponse.builder()
+                .instances(instances)
+                .pageCount(pageCount)
+                .build();
+
+        BasicResponse response = BasicResponse.builder()
+                .success(true)
+                .message(Optional.empty())
+                .data(Optional.of(data_response))
+                .build();
+
+        return ResponseEntity.status(200).body(response);
+    }
+
+    @GetMapping("/instance/search")
+    public ResponseEntity<?> searchInstance(
+            @RequestParam @Valid SearchInstance dto
+    ) {
+        Page<InstanceEntity> instances = manageInstanceService.searchInstances(PageRequest.of(dto.getTake(), dto.getSkip()), dto.getQuery());
         long pageCount = manageInstanceService.countInstancePages(dto.getTake());
         ListInstanceResponse data_response = ListInstanceResponse.builder()
                 .instances(instances)

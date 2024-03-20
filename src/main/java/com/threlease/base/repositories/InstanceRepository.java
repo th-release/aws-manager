@@ -20,4 +20,25 @@ public interface InstanceRepository extends JpaRepository<InstanceEntity, String
 
     @Query(value = "SELECT u FROM InstanceEntity u")
     Page<InstanceEntity> findByPagination(Pageable pageable);
+
+    @Query(value = "SELECT u FROM InstanceEntity u WHERE " +
+                    "u.category LIKE %:query% OR "+
+                    "u.name LIKE %:query% OR " +
+                    "u.description LIKE %:query% OR "+
+                    "u.owner LIKE %:query% OR " +
+                    "u.memo LIKE %:query% OR " +
+                    "u.publicIP LIKE %:query% OR " +
+                    "u.uuid LIKE %:query%"
+    )
+    Page<InstanceEntity> findBySearchPagination(Pageable pageable, @Param("query") String query);
+
+    @Query("SELECT COUNT(u) FROM InstanceEntity u WHERE " +
+            "u.category LIKE %:query% OR " +
+            "u.name LIKE %:query% OR " +
+            "u.description LIKE %:query% OR " +
+            "u.owner LIKE %:query% OR " +
+            "u.memo LIKE %:query% OR " +
+            "u.publicIP LIKE %:query% OR " +
+            "u.uuid LIKE %:query%")
+    long countBySearch(@Param("query") String query);
 }
