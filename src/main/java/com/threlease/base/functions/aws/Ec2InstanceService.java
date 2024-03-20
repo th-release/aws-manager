@@ -111,7 +111,7 @@ public class Ec2InstanceService {
         }
     }
 
-    public Failable<Boolean, String> updateEC2Instance(
+    public Failable<Boolean, String> updateEC2InstanceType(
             Ec2Client ec2Client,
             String id,
             InstanceType type
