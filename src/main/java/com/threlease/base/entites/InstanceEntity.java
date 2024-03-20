@@ -29,8 +29,8 @@ public class InstanceEntity {
     private String memo;
 //  system-specific ---
     @ManyToOne(cascade = CascadeType.REMOVE)
-    @JoinColumn(name = "keypairId", referencedColumnName = "id")
-    private KeypairEntity keypairId;
+    @JoinColumn(name = "keypair", referencedColumnName = "id")
+    private KeypairEntity keypair;
 
     private String publicIP;
 
