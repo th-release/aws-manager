@@ -10,7 +10,6 @@ import com.threlease.base.functions.aws.dto.returns.GetInstanceReturn;
 import com.threlease.base.repositories.InstanceRepository;
 import com.threlease.base.utils.EnumStringComparison;
 import com.threlease.base.utils.Failable;
-import com.threlease.base.utils.responses.BasicResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -125,12 +124,6 @@ public class ManageInstanceService {
 
         Failable<String, String> subnet = networkService.getSubnet();
         if(subnet.isError()) {
-            BasicResponse response = BasicResponse.builder()
-                    .success(false)
-                    .message(Optional.of(subnet.getError()))
-                    .data(Optional.empty())
-                    .build();
-
             return Failable.error(subnet.getError());
         }
 
@@ -178,12 +171,6 @@ public class ManageInstanceService {
         );
 
         if (ec2Instance.isError()) {
-            BasicResponse response = BasicResponse.builder()
-                    .success(false)
-                    .message(Optional.of(ec2Instance.getError()))
-                    .data(Optional.empty())
-                    .build();
-
             return Failable.error(ec2Instance.getError());
         }
 
