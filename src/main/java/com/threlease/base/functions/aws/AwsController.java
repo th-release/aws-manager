@@ -5,11 +5,12 @@ import com.amazonaws.services.pricing.AWSPricingClient;
 import com.amazonaws.services.pricing.AWSPricingClientBuilder;
 import com.threlease.base.entites.InstanceEntity;
 import com.threlease.base.functions.aws.dto.request.CreateInstance;
-import com.threlease.base.functions.aws.dto.request.GetInstances;
+import com.threlease.base.functions.aws.dto.request.GetInstance;
 import com.threlease.base.functions.aws.dto.request.ListInstance;
 import com.threlease.base.functions.aws.dto.request.SearchInstance;
 import com.threlease.base.functions.aws.dto.response.ListInstanceResponse;
 import com.threlease.base.functions.aws.dto.response.PriceAllResponse;
+import com.threlease.base.functions.aws.dto.returns.GetInstanceReturn;
 import com.threlease.base.functions.notice.NoticeResponse;
 import com.threlease.base.functions.notice.WebSocketHandler;
 import com.threlease.base.utils.EnumStringComparison;
@@ -45,13 +46,6 @@ public class AwsController {
         this.manageInstanceService = manageInstanceService;
         this.priceService = priceService;
         this.keypairService = keypairService;
-    }
-
-    @GetMapping("/instances")
-    private ResponseEntity<?> getInstances(
-            @RequestParam @Valid GetInstances dto
-    ) {
-        return ResponseEntity.status(200).body(null);
     }
 
     @GetMapping("/prices/all")
@@ -124,6 +118,31 @@ public class AwsController {
                 .success(true)
                 .message(Optional.empty())
                 .data(Optional.of(data_response))
+                .build();
+
+        return ResponseEntity.status(200).body(response);
+    }
+
+    @GetMapping("/instance/{id}")
+    private ResponseEntity<?> getInstance(
+            @PathVariable("id") String id
+    ) {
+        Failable<GetInstanceReturn, String> instance = this.manageInstanceService.getInstance(id);
+
+        if (instance.isError()) {
+            BasicResponse response = BasicResponse.builder()
+                    .success(false)
+                    .message(Optional.of(instance.getError()))
+                    .data(Optional.empty())
+                    .build();
+
+            return ResponseEntity.status(404).body(response);
+        }
+
+        BasicResponse response = BasicResponse.builder()
+                .success(true)
+                .message(Optional.empty())
+                .data(Optional.of(instance.getValue()))
                 .build();
 
         return ResponseEntity.status(200).body(response);

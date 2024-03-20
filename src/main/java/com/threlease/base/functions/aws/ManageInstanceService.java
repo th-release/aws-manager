@@ -5,6 +5,7 @@ import com.amazonaws.services.pricing.AWSPricingClient;
 import com.amazonaws.services.pricing.AWSPricingClientBuilder;
 import com.threlease.base.entites.InstanceEntity;
 import com.threlease.base.entites.KeypairEntity;
+import com.threlease.base.functions.aws.dto.returns.GetInstanceReturn;
 import com.threlease.base.repositories.InstanceRepository;
 import com.threlease.base.utils.EnumStringComparison;
 import com.threlease.base.utils.Failable;
@@ -17,6 +18,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Address;
 import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceStatus;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 import java.util.Arrays;
@@ -70,6 +72,25 @@ public class ManageInstanceService {
 
     public Optional<InstanceEntity> findOneByName(String name) {
         return instanceRepository.findOneByName(name);
+    }
+
+    public Failable<GetInstanceReturn, String> getInstance(
+            String id
+    ) {
+        Ec2Client ec2Client = getEc2Client();
+        Optional<InstanceEntity> instance = findOneByUuid(id);
+        List<InstanceStatus> status = ec2InstanceService.getEC2InstanceStatus(ec2Client, List.of(id));
+
+        if (status.isEmpty() || instance.isEmpty()) {
+            return Failable.error("NOT FOUND INSTANCE");
+        } else {
+            GetInstanceReturn value = new GetInstanceReturn();
+
+            value.setInstance(instance.get());
+            value.setStatus(status.get(0));
+
+            return Failable.success(value);
+        }
     }
 
     public Failable<Boolean, String> createInstance(
