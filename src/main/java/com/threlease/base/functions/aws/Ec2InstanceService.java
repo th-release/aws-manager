@@ -194,6 +194,25 @@ public class Ec2InstanceService {
         }
     }
 
+    public Failable<Instance, String> getEc2Instance(
+            Ec2Client ec2Client,
+            String id
+    ) {
+        DescribeInstancesRequest request = DescribeInstancesRequest.builder()
+                .instanceIds(id)
+                .build();
+
+        DescribeInstancesResponse response = ec2Client.describeInstances(request);
+
+        if (response.reservations().isEmpty()) {
+            return Failable.error("NOT FOUND RESERVATIONS");
+        } else if (response.reservations().get(0).instances().isEmpty()) {
+            return Failable.error("NOT FOUND INSTANCES");
+        }  else {
+            return Failable.success(response.reservations().get(0).instances().get(0));
+        }
+    }
+
     public List<InstanceStatus> getEC2InstanceStatus (
             Ec2Client ec2Client,
             List<String> id
