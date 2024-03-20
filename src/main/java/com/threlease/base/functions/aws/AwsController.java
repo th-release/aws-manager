@@ -4,7 +4,6 @@ import com.amazonaws.services.pricing.AWSPricing;
 import com.amazonaws.services.pricing.AWSPricingClient;
 import com.amazonaws.services.pricing.AWSPricingClientBuilder;
 import com.threlease.base.entites.InstanceEntity;
-import com.threlease.base.entites.KeypairEntity;
 import com.threlease.base.functions.aws.dto.request.CreateInstance;
 import com.threlease.base.functions.aws.dto.request.ListInstance;
 import com.threlease.base.functions.aws.dto.request.SearchInstance;
@@ -36,16 +35,15 @@ import java.util.concurrent.atomic.AtomicReference;
 @RestController
 @RequestMapping("/aws")
 public class AwsController {
-    private final Ec2InstanceService ec2InstanceService;
     private final ManageInstanceService manageInstanceService;
     private final PriceService priceService;
-    private final KeypairService keypairService;
 
-    public AwsController(Ec2InstanceService ec2InstanceService, ManageInstanceService manageInstanceService, PriceService priceService, KeypairService keypairService) {
-        this.ec2InstanceService = ec2InstanceService;
+    public AwsController(
+            ManageInstanceService manageInstanceService,
+            PriceService priceService
+    ) {
         this.manageInstanceService = manageInstanceService;
         this.priceService = priceService;
-        this.keypairService = keypairService;
     }
 
     @GetMapping("/prices/all")
