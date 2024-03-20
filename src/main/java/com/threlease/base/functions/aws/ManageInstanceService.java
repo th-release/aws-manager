@@ -385,6 +385,19 @@ public class ManageInstanceService {
         return Failable.success(true);
     }
 
+    public Failable<Boolean, String> resetInstance(
+            Ec2Client ec2Client,
+            InstanceEntity instance
+    ) {
+        Failable<Boolean, String> resetRequest = storageService.resetRootStorage(ec2Client, instance.getUuid());
+
+        if (resetRequest.isError()) {
+            return Failable.error(resetRequest.getError());
+        }
+
+        return Failable.success(true);
+    }
+
     public Page<InstanceEntity> listInstances(Pageable pageable) {
         return instanceRepository.findByPagination(pageable);
     }
