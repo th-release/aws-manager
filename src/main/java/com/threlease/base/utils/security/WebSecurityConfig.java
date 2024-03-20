@@ -31,7 +31,8 @@ public class WebSecurityConfig {
                 )
                 .authorizeHttpRequests(request -> request
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/aws/**").hasRole("ADMIN")
+                        .requestMatchers("/aws/**").hasAnyRole("ADMIN", "ROOT")
+                        .requestMatchers("/invite/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class)
