@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -74,5 +75,43 @@ public class NetworkService {
         }
 
         return Failable.success(addresses.get(0));
+    }
+
+    public Failable<Boolean, String> detachEIP(
+            Ec2Client ec2Client,
+            String id
+    ) {
+        ArrayList<String> ids = new ArrayList<String>();
+
+        ids.add(id);
+
+        Filter filter = Filter.builder()
+                .name("instance-id")
+                .values(ids)
+                .build();
+
+        DescribeAddressesRequest da_request = DescribeAddressesRequest.builder()
+                .filters(filter)
+                .build();
+
+        DescribeAddressesResponse da_response = ec2Client.describeAddresses(da_request);
+
+        if (da_response.addresses().isEmpty()) {
+            return Failable.error("NOT FOUND ADDRESSES");
+        }
+
+        DisassociateAddressRequest detach_request = DisassociateAddressRequest.builder()
+                .associationId(da_response.addresses().get(0).associationId())
+                .build();
+
+        ec2Client.disassociateAddress(detach_request);
+
+        ReleaseAddressRequest release_request = ReleaseAddressRequest.builder()
+                .allocationId(da_request.allocationIds().get(0))
+                .build();
+
+        ec2Client.releaseAddress(release_request);
+
+        return Failable.success(true);
     }
 }
